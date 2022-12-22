@@ -1,0 +1,17 @@
+#picture
+*.png
+*.jpg
+
+#data
+*.npy
+*.txt
+*.json
+*.xml
+
+#model
+*.pcd
+*.obj
+*.mtl
+
+#other
+*.zip
