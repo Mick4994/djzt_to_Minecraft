@@ -9,6 +9,7 @@ import cv2
 # cv2.cvtColor(img,cv2.RGB)
 start_time = time.time()
 
+# 展示源 pcd文件转换为o3d打开
 def show_source():
     print(get_runtime()+'loading pcd')
     all_pcd_file = os.listdir('3D-models/terra_pcd/')
@@ -44,6 +45,8 @@ def get_runtime() -> str:
     runtime = '{:.1f}'.format(time.time() - start_time)
     return 'runtime:'+ runtime + 's '
 
+
+# 读取源 pcd文件
 def forward():
     f = open('256.txt','r')
     all_lines = f.readlines()
@@ -58,12 +61,12 @@ def forward():
         value_list.append(value_str)
 
     value_array = np.array(value_list, dtype=np.uint8)
+    # ========================获得 256色RGB表======================== #
 
     print(get_runtime()+'loading pcd')
     all_pcd_file = os.listdir('3D-models/terra_pcd/')
     all_pcd_file = ['3D-models/terra_pcd/' + i for i in all_pcd_file if i.endswith('.pcd')]
     pcd_list = [o3d.io.read_point_cloud(pcd_file) for pcd_file in all_pcd_file]
-    # print('finished load')
 
     xyz_list = []
     color_list = []
@@ -76,12 +79,7 @@ def forward():
         count += 1
         print(get_runtime()+' get:',count)
 
-    # print(get_runtime()+'finish get, turning to array')
-
-    # xyz = np.array(xyz_list)
-    # colors = np.array(color_list)
-    # print(get_runtime()+'finish turn')
-
+    # ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓转化为整型坐标↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ #
     int_xyz_dic = {}
     for i in range(len(xyz_list)):
         int_xyz_dic[str([int(xyz_list[i][0]),int(xyz_list[i][1]),int(xyz_list[i][2])])] = color_list[i]
@@ -101,11 +99,11 @@ def forward():
         print(get_runtime() + 'rebuild:{:.2f}%'.format(count*100/len(int_xyz_dic)), end='\r')
     print('\n',end='')
     np.save('int_xyz.npy',np.array(int_xyz))
-    np.save('int_colors.npy',np.array(int_colors))
+    np.save('int_colors.npy',np.array(int_colors)) # 整型坐标下对应的颜色RGB
     print(get_runtime() + 'finish save numpy data')
+    # ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 转化为整型坐标 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ #
 
-
-
+# ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 256色颜色匹配 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ #
 def match_color():
     f = open('256.txt','r')
     all_lines = f.readlines()
@@ -117,21 +115,23 @@ def match_color():
         rgb_end_index = rgb_index + line[line.index('rgb'):-1].index(')')
         value_str = [int(i) for i in line[rgb_index+4:rgb_end_index].split(',')]
         value_list.append(value_str)
-    # colors = np.load('int_colors.npy')
     colors = np.load("match_colors_copy.npy")
 
     match_colors_list = []
     colors_255 = np.array(colors * 255, dtype = np.uint8)
+
+    # waring！！！时间复杂度很大，要匹配很久，需要优化算法 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
     for i in range(len(colors_255)):
         diff_list = [sum([abs(value_list[j][k] - colors_255[i][k]) for k in range(len(value_list[j]))]) for j in range(len(value_list))]
         min_index = diff_list.index(min(diff_list))
         match_colors_list.append(np.array(value_list[min_index]))
         print(get_runtime()+'matching:{:.2f}'.format(i*100/len(colors_255)),"%",end='\r')
     print('\nfinish match')
+    # waring！！！时间复杂度很大，要匹配很久，需要优化算法 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+    
     match_colors = np.array(match_colors_list)/255
 
     print(get_runtime()+'saving result')
-    # f = open('match_colors.txt','w')
     f = open('match_colors_copy.txt','w')
     for i in range(len(match_colors_list)):
         f.write(str(match_colors_list[i]) + '\n')
@@ -141,6 +141,7 @@ def match_color():
 
     xyz = np.load('int_xyz.npy')
     return match_colors, xyz
+# ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 256色颜色匹配 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ #
 
 def xyz_dis(sztu_pcd):
     x, y, z = zip(*np.asarray(sztu_pcd.points))

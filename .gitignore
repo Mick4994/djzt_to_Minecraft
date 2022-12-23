@@ -15,3 +15,5 @@
 
 #other
 *.zip
+*.log
+*.pyc

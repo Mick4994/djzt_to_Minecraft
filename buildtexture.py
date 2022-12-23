@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 
+
+#生成 25 * 25 * 25 的色彩材质
+
 block_name = []
 for i in range(26):
     for j in range(26):
