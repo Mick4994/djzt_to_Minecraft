@@ -63,17 +63,21 @@ class Process:
         self.data_area.sort_counter = np.array(self.data_area.sort_counter)
         counter()
         self.logger.info('finished counting')
-
-            # if count % pow(10, len(str(unique_colors_len)) - 2) == 0:
-            #     self.logger.info(f"\nmatching {count}/{unique_colors_len}:{count*100/unique_colors_len:.2f}%")
     def spawn_texture(self):
-        if not os.path.exists('new_texture'):
-            os.mkdir('new_texture')
-        for item, index in tqdm(zip(self.data_area.sort_counter[:256], range(256))):
-            texture = np.array(item[0], dtype=np.uint8)
+        pwd = 'resources_pack/assets/colors_mod/textures/block'
+        texture_list = []
+        for key, _ in self.data_area.sort_counter[:256]:
+            num_list = []
+            for i in range(len(key)):
+                if (key[i] == ' ' or key[i] == '[') and key[i+1].isnumeric():
+                    end = (i+1 + key[i + 1:].find(' ')) if key[i + 1:].find(' ') != -1 else len(key) - 1
+                    num_list.append(key[i+1:end])
+            texture_list.append(num_list)
+        for rgb, index in tqdm(zip(texture_list, range(256))):
+            texture = np.array(rgb, dtype=np.uint8)
             texture = np.reshape(texture, (1,1,3))
             texture = cv2.cvtColor(texture, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(f'new_texture/block_{index}.png', texture)
+            cv2.imwrite(f'{pwd}/block_{index}.png', texture)
     def spawn_datapack(self):
         if os.path.exists('setblock'):
             self.logger.error(u"生成数据包失败，请检测当下目录是否包含上次生成的数据包，\
@@ -92,7 +96,7 @@ class Process:
 }''')
             all_line:list[str] = []
             for xyz, rgb in tqdm(zip(self.data_area.unique_xyz, self.data_area.rematch_colors)):
-                x, y, z = str(xyz)[1:-1].split(',')
+                x, y, z = xyz
                 index = self.data_area.rematch_colors.index(rgb)
                 all_line.append(f'setblock {x} {y} {z} colors_mod:block_{index}\n')
             with open('setblock/data/functions/setblock.mcfunction','w') as mcfunction:
@@ -128,42 +132,47 @@ if __name__ == "__main__":
     logger = log_init()
     data_area = Data_Area(logger)
 
-    if os.path.exists('unique_xyz.npy') and os.path.exists('unique_colors.npy'):
+    if os.path.exists('data/unique_xyz.npy') and os.path.exists('data/unique_colors.npy'):
         logger.info('exist data, loading data')
-        data_area.unique_colors = np.load('unique_colors.npy').tolist()
-        data_area.unique_xyz = np.load('unique_xyz.npy').tolist()
+        data_area.unique_colors = np.load('data/unique_colors.npy').tolist()
+        data_area.unique_xyz = np.load('data/unique_xyz.npy').tolist()
     else:
         data_area.LoadingPCD()
         data_area.SaveIntNpy()
 
     process = Process(logger, data_area)
-    if os.path.exists('sort_counter.npy'):
+    if os.path.exists('data/sort_counter.npy'):
         logger.info('exist sort data')
-        data_area.sort_counter = np.load('sort_counter.npy').tolist()
+        data_area.sort_counter = np.load('data/sort_counter.npy').tolist()
     else:
         process.Count_colors()
 
-    if os.path.exists('rematch_colors.npy'):
+    if os.path.exists('data/rematch_colors.npy'):
         logger.info('exist sort rematch data')
-        rematch_colors = np.load('rematch_colors.npy')
-        print(rematch_colors.shape)
+        rematch_colors = np.load('data/rematch_colors.npy').tolist()
     else:
         logger.warning(f"matching colors data length: {len(data_area.unique_colors)} it took time")
         all_works = []
+        cpu_num = cpu_count()
         for i in range(len(data_area.unique_colors)):
-            if i < 12:
+            if i < cpu_num:
                 all_works.append([[i, data_area.unique_colors[i]]])
             else:
-                all_works[i%12].append([i, data_area.unique_colors[i]])
+                all_works[i % cpu_num].append([i, data_area.unique_colors[i]])
         rematch_colors = []
         with Pool(processes=None) as p:
             for result in p.map(match_colors,iterable = all_works):
                 rematch_colors += result
-        np.save('rematch_colors.npy', np.array(rematch_colors))
+        np.save('data/rematch_colors.npy', np.array(rematch_colors))
         logger.info('finish save rematch_colors')
+    rematch_colors = sorted(rematch_colors, key=lambda d:d[0][0])
+    _, rematch_colors = list(zip(*rematch_colors))
+    data_area.rematch_colors = rematch_colors
 
-    # logger.info('finished rematching')
-    # process.spawn_texture()
-    # process.spawn_datapack()
+    if os.path.exists('new_texture'):
+        logger.info('have finished texture build')
+    else:
+        process.spawn_texture()
+    process.spawn_datapack()
     # print(cpu_count())
 
