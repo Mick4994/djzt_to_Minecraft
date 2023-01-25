@@ -17,3 +17,6 @@
 *.zip
 *.log
 *.pyc
+
+#Minecraft
+*.mcfunction

@@ -1,6 +1,5 @@
 import os
 import cv2
-import re
 import logging
 import open3d as o3d
 import numpy as np
@@ -63,29 +62,27 @@ class Process:
         self.data_area.sort_counter = np.array(self.data_area.sort_counter)
         counter()
         self.logger.info('finished counting')
+
     def spawn_texture(self):
         pwd = 'resources_pack/assets/colors_mod/textures/block'
         texture_list = []
-        for key, _ in self.data_area.sort_counter[:256]:
-            num_list = []
-            for i in range(len(key)):
-                if (key[i] == ' ' or key[i] == '[') and key[i+1].isnumeric():
-                    end = (i+1 + key[i + 1:].find(' ')) if key[i + 1:].find(' ') != -1 else len(key) - 1
-                    num_list.append(key[i+1:end])
+        for num_list in range_colors:
             texture_list.append(num_list)
         for rgb, index in tqdm(zip(texture_list, range(256))):
             texture = np.array(rgb, dtype=np.uint8)
             texture = np.reshape(texture, (1,1,3))
             texture = cv2.cvtColor(texture, cv2.COLOR_RGB2BGR)
             cv2.imwrite(f'{pwd}/block_{index}.png', texture)
+
     def spawn_datapack(self):
         if os.path.exists('setblock'):
             self.logger.error(u"生成数据包失败，请检测当下目录是否包含上次生成的数据包，\
-                                请删除或移走原有数据包，再执行程序")
+请删除或移走原有数据包，再执行程序")
         else:
             os.mkdir('setblock')
             os.mkdir('setblock/data')
-            os.mkdir('setblock/data/functions')
+            os.mkdir('setblock/data/setblock')
+            os.mkdir('setblock/data/setblock/functions')
             with open('setblock/pack.mcmeta','w') as mcmeta:
                 mcmeta.write(
 '''{
@@ -95,14 +92,36 @@ class Process:
     }
 }''')
             all_line:list[str] = []
+            count = 0
             for xyz, rgb in tqdm(zip(self.data_area.unique_xyz, self.data_area.rematch_colors)):
                 x, y, z = xyz
-                index = self.data_area.rematch_colors.index(rgb)
-                all_line.append(f'setblock {x} {y} {z} colors_mod:block_{index}\n')
-            with open('setblock/data/functions/setblock.mcfunction','w') as mcfunction:
-                mcfunction.writelines(all_line)
+                index = range_colors.index(rgb)
+                all_line.append(f'setblock {-x} {z+150} {y} colors_mod:block_{index}\n')
+                if len(all_line) == 65536:
+                    count += 1
+                    self.logger.info(f'write {count} mcfunction')
+                    with open(f'setblock/data/setblock/functions/setblock_{count}.mcfunction','w') as mcfunction:
+                        mcfunction.writelines(all_line)
+                    all_line = []
+            if len(all_line) != 0:
+                count += 1
+                self.logger.info(f'write the last mcfunction')
+                with open(f'setblock/data/setblock/functions/setblock_{count}.mcfunction','w') as mcfunction:
+                    mcfunction.writelines(all_line)
 
-sort_counter = np.load('sort_counter.npy')
+def range_colors_func():
+    range_colors = []
+    sort_counter = np.load('data/sort_counter.npy')
+    for key, _ in sort_counter[:256]:
+        num_list = []
+        for i in range(len(key)):
+            if (key[i] == ' ' or key[i] == '[') and key[i+1].isnumeric():
+                end = (i+1 + key[i + 1:].find(' ')) if key[i + 1:].find(' ') != -1 else len(key) - 1
+                num_list.append(int(key[i+1:end]))
+        range_colors.append(num_list)
+    return range_colors
+
+range_colors = range_colors_func()
 
 def match_colors(works):
     rematch_colors = []
@@ -110,12 +129,7 @@ def match_colors(works):
     count = 0
     for index, rgb in works:
         diff_dict = {}
-        for key, _ in sort_counter[:256]:
-            num_list = []
-            for i in range(len(key)):
-                if (key[i] == ' ' or key[i] == '[') and key[i+1].isnumeric():
-                    end = (i+1 + key[i + 1:].find(' ')) if key[i + 1:].find(' ') != -1 else len(key) - 1
-                    num_list.append(key[i+1:end])
+        for num_list in range_colors:
             a, b, c = num_list
             rgb_match = [int(a), int(b), int(c)]
             diff = sum([abs(i-j) for i, j in zip(rgb, rgb_match)])
@@ -169,10 +183,10 @@ if __name__ == "__main__":
     _, rematch_colors = list(zip(*rematch_colors))
     data_area.rematch_colors = rematch_colors
 
-    if os.path.exists('new_texture'):
+    if os.path.exists('resources_pack'):
         logger.info('have finished texture build')
     else:
         process.spawn_texture()
     process.spawn_datapack()
-    # print(cpu_count())
+
 

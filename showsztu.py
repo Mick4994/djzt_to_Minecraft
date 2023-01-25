@@ -37,7 +37,8 @@ def show_source():
     sztu_pcd = o3d.geometry.PointCloud()
     sztu_pcd.points = o3d.utility.Vector3dVector(xyz)
     sztu_pcd.colors = o3d.utility.Vector3dVector(colors)
-    o3d.visualization.draw([sztu_pcd])
+    return sztu_pcd
+    
 
 
 
@@ -374,10 +375,12 @@ if __name__ == '__main__':
     # match_colors, xyz = match_color()
     # match_colors_copy = match_colors_copy_read()
     # print(colors_255)
-    # xyz_dis()
+    sztu_pcd = show_source()
+    xyz_dis(sztu_pcd)
+    o3d.visualization.draw([sztu_pcd])
     # sztu_pcd.colors = o3d.utility.Vector3dVector(colors)
     # print(get_runtime()+'loading Vision')
-    show_rebuild_with_rematch()
+    # show_rebuild_with_rematch()
     # count_ahead256()
     # match_count_colors()
 
