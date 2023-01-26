@@ -1,6 +1,6 @@
 <h1>
   <p align="center">
-    <img src="readme/resources/icon.png" alt="Logo" width="200" height="150">
+    <img src="../resources/icon.png" alt="Logo" width="200" height="150">
     <br>
     DJZT_To_Minecraft
   </p>

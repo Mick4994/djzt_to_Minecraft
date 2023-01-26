@@ -45,6 +45,7 @@ class Process:
     def __init__(self, logger:logging.Logger, data_area:Data_Area) -> None:
         self.logger = logger
         self.data_area = data_area
+        self.range_colors = []
     def Count_colors(self):
         self.logger.info("Count all colors and down sort")
         def counter(not_arg = None):
@@ -57,16 +58,18 @@ class Process:
                                                 key = lambda kv:(kv[1], kv[0]),
                                                 reverse = True)
             np.save("sort_counter.npy", np.array(self.data_area.sort_counter))
+            self.range_colors = range_colors_func()
         with Pool(processes=None) as p:
             p.map(counter, [0])
         self.data_area.sort_counter = np.array(self.data_area.sort_counter)
         counter()
         self.logger.info('finished counting')
 
+    #生成材质包
     def spawn_texture(self):
         pwd = 'resources_pack/assets/colors_mod/textures/block'
         texture_list = []
-        for num_list in range_colors:
+        for num_list in self.range_colors:
             texture_list.append(num_list)
         for rgb, index in tqdm(zip(texture_list, range(256))):
             texture = np.array(rgb, dtype=np.uint8)
@@ -74,6 +77,7 @@ class Process:
             texture = cv2.cvtColor(texture, cv2.COLOR_RGB2BGR)
             cv2.imwrite(f'{pwd}/block_{index}.png', texture)
 
+    #生成数据包
     def spawn_datapack(self):
         if os.path.exists('setblock'):
             self.logger.error(u"生成数据包失败，请检测当下目录是否包含上次生成的数据包，\
@@ -95,7 +99,7 @@ class Process:
             count = 0
             for xyz, rgb in tqdm(zip(self.data_area.unique_xyz, self.data_area.rematch_colors)):
                 x, y, z = xyz
-                index = range_colors.index(rgb)
+                index = self.range_colors.index(rgb)
                 all_line.append(f'setblock {-x} {z+150} {y} colors_mod:block_{index}\n')
                 if len(all_line) == 65536:
                     count += 1
@@ -121,10 +125,10 @@ def range_colors_func():
         range_colors.append(num_list)
     return range_colors
 
-range_colors = range_colors_func()
-
+#用于多线程协同工作的回调函数
 def match_colors(works):
     rematch_colors = []
+    range_colors = range_colors_func()
     works_len = len(works)
     count = 0
     for index, rgb in works:
@@ -188,5 +192,6 @@ if __name__ == "__main__":
     else:
         process.spawn_texture()
     process.spawn_datapack()
+    logger.info("finish all work！")
 
 
