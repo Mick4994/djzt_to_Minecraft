@@ -3,8 +3,8 @@
 *.jpg
 
 #data
+/data/
 *.npy
-*.txt
 *.json
 *.xml
 
